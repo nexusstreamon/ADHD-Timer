@@ -58,6 +58,13 @@ export default function App() {
   const endTimeRef = useRef<number>(0);
   const animationFrameRef = useRef<number | null>(null);
   const previousSecondRef = useRef<number>(0);
+  const workerRef = useRef<Worker | null>(null);
+  const configRef = useRef(config);
+
+  // Keep config ref updated
+  useEffect(() => {
+    configRef.current = config;
+  }, [config]);
 
   // Sync dark mode HTML class
   useEffect(() => {
@@ -78,12 +85,101 @@ export default function App() {
     }
   }, [timeLeft, isEditingDigital]);
 
+  // Dynamic Tab Title with countdown
+  useEffect(() => {
+    if (isRunning && timeLeft > 0) {
+      const roundedSeconds = Math.ceil(timeLeft);
+      const minutes = Math.floor(roundedSeconds / 60);
+      const secs = roundedSeconds % 60;
+      const formatted = `${minutes.toString().padStart(2, "0")}:${secs.toString().padStart(2, "0")}`;
+      document.title = `(${formatted}) ADHD Timer`;
+    } else {
+      document.title = "ADHD Timer - Visual Focus Companion";
+    }
+  }, [timeLeft, isRunning]);
+
+  // Initialize Web Worker
+  useEffect(() => {
+    try {
+      const workerCode = `
+        let timerId = null;
+        self.onmessage = function(e) {
+          if (e.data.action === "start") {
+            if (timerId) clearInterval(timerId);
+            const endTime = e.data.endTime;
+            timerId = setInterval(() => {
+              const now = Date.now();
+              const diff = (endTime - now) / 1000;
+              if (diff <= 0) {
+                self.postMessage({ action: "finished" });
+                clearInterval(timerId);
+                timerId = null;
+              } else {
+                self.postMessage({ action: "tick", timeLeft: Math.max(0, diff) });
+              }
+            }, 100);
+          } else if (e.data.action === "stop") {
+            if (timerId) {
+              clearInterval(timerId);
+              timerId = null;
+            }
+          }
+        };
+      `;
+      const blob = new Blob([workerCode], { type: "application/javascript" });
+      const workerUrl = URL.createObjectURL(blob);
+      workerRef.current = new Worker(workerUrl);
+
+      const handleMessage = (e: MessageEvent) => {
+        const { action, timeLeft: workerTimeLeft } = e.data;
+        if (action === "finished") {
+          setTimeLeft(0);
+          setIsRunning(false);
+          setFlashOnComplete(true);
+          playAlarmSound(configRef.current.soundProfile, 0.4);
+          
+          // Clear flash after 6 seconds
+          setTimeout(() => {
+            setFlashOnComplete(false);
+          }, 6000);
+        } else if (action === "tick" && workerTimeLeft !== undefined) {
+          // If the main thread is in the background, requestAnimationFrame won't run,
+          // so we update state from the worker's ticks.
+          if (document.hidden) {
+            const currentSecond = Math.ceil(workerTimeLeft);
+            if (configRef.current.tickSoundEnabled && !configRef.current.isMuted && currentSecond !== previousSecondRef.current) {
+              playTickSound(0.04);
+            }
+            previousSecondRef.current = currentSecond;
+            setTimeLeft(workerTimeLeft);
+          }
+        }
+      };
+
+      workerRef.current.addEventListener("message", handleMessage);
+    } catch (err) {
+      console.error("Failed to create Web Worker:", err);
+    }
+
+    return () => {
+      if (workerRef.current) {
+        workerRef.current.terminate();
+      }
+    };
+  }, []);
+
   // High precision countdown loop
   useEffect(() => {
     if (isRunning) {
       // Calculate exactly when the timer should end
-      endTimeRef.current = Date.now() + timeLeft * 1000;
+      const durationMs = timeLeft * 1000;
+      endTimeRef.current = Date.now() + durationMs;
       previousSecondRef.current = Math.ceil(timeLeft);
+
+      // Start Web Worker countdown as background fallback
+      if (workerRef.current) {
+        workerRef.current.postMessage({ action: "start", endTime: endTimeRef.current });
+      }
 
       const tick = () => {
         const now = Date.now();
@@ -96,7 +192,11 @@ export default function App() {
           setFlashOnComplete(true);
           playAlarmSound(config.soundProfile, 0.4);
           
-          // Clear flash after 5 seconds
+          if (workerRef.current) {
+            workerRef.current.postMessage({ action: "stop" });
+          }
+
+          // Clear flash after 6 seconds
           setTimeout(() => {
             setFlashOnComplete(false);
           }, 6000);
@@ -119,11 +219,17 @@ export default function App() {
       if (animationFrameRef.current) {
         cancelAnimationFrame(animationFrameRef.current);
       }
+      if (workerRef.current) {
+        workerRef.current.postMessage({ action: "stop" });
+      }
     }
 
     return () => {
       if (animationFrameRef.current) {
         cancelAnimationFrame(animationFrameRef.current);
+      }
+      if (workerRef.current) {
+        workerRef.current.postMessage({ action: "stop" });
       }
     };
   }, [isRunning, config.tickSoundEnabled, config.isMuted, config.soundProfile]);
