@@ -347,25 +347,6 @@ export default function ClockFace({
             />
           )}
 
-          {/* 3. Subtle hover preview sector to help user see what they would set */}
-          {!isDragging && hoverAngle !== null && remainingFraction < 1 && (
-            <path
-              d={(() => {
-                const fraction = isClockwise 
-                  ? hoverAngle / (2 * Math.PI)
-                  : (2 * Math.PI - hoverAngle) / (2 * Math.PI);
-                const largeArc = hoverAngle > Math.PI ? 1 : 0;
-                const endX = CX + R * Math.sin(hoverAngle);
-                const endY = CY - R * Math.cos(hoverAngle);
-                const sweep = isClockwise ? 1 : 0;
-                
-                // Construct preview wedge from 12 o'clock to current hover position
-                return `M ${CX} ${CY} L ${CX} ${CY - R} A ${R} ${R} 0 ${largeArc} ${sweep} ${endX} ${endY} Z`;
-              })()}
-              className="fill-neutral-400/20 dark:fill-neutral-500/20 pointer-events-none"
-            />
-          )}
-
           {/* Ticks layer */}
           {ticks}
 
