@@ -4,7 +4,6 @@
  */
 
 import React, { useRef, useEffect, useState } from "react";
-import { playTactileClick } from "../utils/audio";
 
 // Helper to get labels based on duration scale
 function getDialLabelsList(maxSeconds: number) {
@@ -205,11 +204,6 @@ export default function ClockFace({
     
     if (snappedSeconds !== refTimeLeft) {
       refOnTimeSet(snappedSeconds);
-      if (!refMuted) {
-        // High quality frequency sweep depending on how far we are
-        const pitchFreq = 300 + (snappedSeconds / refMaxSec) * 500;
-        playTactileClick(pitchFreq, 0.015);
-      }
     }
   };
 

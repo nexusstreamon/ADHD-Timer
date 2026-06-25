@@ -15,6 +15,7 @@ import {
   Minus
 } from "lucide-react";
 import { SoundProfile, TimerConfig } from "../types";
+import { playAlarmSound } from "../utils/audio";
 
 interface ControlPanelProps {
   config: TimerConfig;
@@ -249,7 +250,12 @@ export default function ControlPanel({
               key={sound.id}
               id={`sound-profile-${sound.id}`}
               disabled={isMuted}
-              onClick={() => onConfigChange({ soundProfile: sound.id })}
+              onClick={() => {
+                onConfigChange({ soundProfile: sound.id });
+                if (sound.id !== "none") {
+                  playAlarmSound(sound.id, 0.4);
+                }
+              }}
               className={`py-2 px-2.5 text-left text-xs font-medium rounded-xl border transition-all ${
                 isMuted
                   ? "opacity-40 cursor-not-allowed bg-neutral-50 border-neutral-100 text-neutral-400 dark:bg-neutral-950 dark:border-neutral-900"
