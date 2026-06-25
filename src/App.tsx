@@ -49,6 +49,15 @@ export default function App() {
   const [showHelp, setShowHelp] = useState<boolean>(false);
   const [showSettings, setShowSettings] = useState<boolean>(false);
   const [flashOnComplete, setFlashOnComplete] = useState<boolean>(false);
+  const [quirkyIndex, setQuirkyIndex] = useState<number>(0);
+
+  // Quirky message rotation effect
+  useEffect(() => {
+    const interval = setInterval(() => {
+      setQuirkyIndex(prev => prev + 1);
+    }, 10000);
+    return () => clearInterval(interval);
+  }, []);
 
   // Digital input temporary variables
   const [minInput, setMinInput] = useState<string>("15");
@@ -302,11 +311,39 @@ export default function App() {
     return `${totalMinutes.toString().padStart(2, "0")}:${secs.toString().padStart(2, "0")}`;
   };
 
+  const QUIRKY_PHRASES = [
+    "Busted! Look back at your work.",
+    "I am just a clock. Go away.",
+    "Staring at me won't finish that task.",
+    "My numbers are boring. Your work isn't.",
+    "I am ticking. You should be typing.",
+    "Hey! Eyes on the prize, not the clock.",
+    "Close this tab. Open your work.",
+    "Shoo! Nothing to see here.",
+    "Your timer is judging you. Move along.",
+    "Stop reading this and start working.",
+    "Look up! Your work misses you.",
+    "Why are you still reading this?",
+    "This screen contains zero dopamine. Leave.",
+    "I see you. Back to business.",
+    "Blink twice and look away now.",
+    "I don't need your supervision. Go.",
+    "I can count without you watching.",
+    "My hands are moving, yours aren't.",
+    "I'm doing my job. Do yours.",
+    "Stop micromanaging my countdown.",
+    "Staring makes me count slower.",
+    "Seriously. I am a distraction in disguise.",
+    "Your workspace is that way.",
+    "Break the spell. Look away now."
+  ];
+
   // Human-readable remaining time explanation (e.g. "12 Minutes Left")
   const getHumanTimeText = (seconds: number) => {
     if (seconds === 0) return "Time's up!";
-    const mins = Math.ceil(seconds / 60);
-    return `${mins} Minute${mins > 1 ? "s" : ""} Remaining`;
+    if (!isRunning) return "\u00A0"; // Non-breaking space for layout preservation
+    const index = quirkyIndex % QUIRKY_PHRASES.length;
+    return QUIRKY_PHRASES[index];
   };
 
   return (
@@ -470,8 +507,7 @@ export default function App() {
               )}
               
               {!isEditingDigital && (
-                <p className="text-xs font-semibold text-neutral-500 dark:text-neutral-400 mt-1 flex items-center gap-1">
-                  <span className="w-1.5 h-1.5 rounded-full bg-neutral-400 dark:bg-neutral-600" />
+                <p className="text-xs font-semibold text-neutral-500 dark:text-neutral-400 mt-1 flex items-center justify-center italic">
                   {getHumanTimeText(timeLeft)}
                 </p>
               )}
@@ -644,7 +680,7 @@ export default function App() {
                   {formatTimeDigital(timeLeft)}
                 </h2>
               )}
-              <p className="text-sm font-semibold tracking-wide text-neutral-500 dark:text-neutral-400 uppercase mt-2">
+              <p className="text-sm font-semibold tracking-wide text-neutral-500 dark:text-neutral-400 uppercase mt-2 italic">
                 {getHumanTimeText(timeLeft)}
               </p>
             </div>
