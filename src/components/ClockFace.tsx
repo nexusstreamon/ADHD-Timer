@@ -100,8 +100,8 @@ export default function ClockFace({
   onDragEnd,
 }: ClockFaceProps) {
   const svgRef = useRef<SVGSVGElement | null>(null);
+
   const [isDragging, setIsDragging] = useState(false);
-  const [hoverAngle, setHoverAngle] = useState<number | null>(null);
 
   const CX = 150;
   const CY = 150;
@@ -120,13 +120,40 @@ export default function ClockFace({
 
   const selectedColor = colorMap[themeColor] || colorMap.red;
 
-  const handlePointerEvent = (clientX: number, clientY: number) => {
+  // Stable reference to state to avoid stale closures in global dragging event listeners
+  const stateRef = useRef({
+    isClockwise,
+    maxDurationSeconds,
+    timeLeft,
+    isMuted,
+    onTimeSet,
+  });
+
+  useEffect(() => {
+    stateRef.current = {
+      isClockwise,
+      maxDurationSeconds,
+      timeLeft,
+      isMuted,
+      onTimeSet,
+    };
+  }, [isClockwise, maxDurationSeconds, timeLeft, isMuted, onTimeSet]);
+
+  const handlePointerEvent = (clientX: number, clientY: number, isDraggingMove: boolean = false) => {
     if (!svgRef.current) return;
     const rect = svgRef.current.getBoundingClientRect();
     const centerX = rect.left + rect.width / 2;
     const centerY = rect.top + rect.height / 2;
     const dx = clientX - centerX;
     const dy = clientY - centerY;
+
+    const {
+      isClockwise: refClockwise,
+      maxDurationSeconds: refMaxSec,
+      timeLeft: refTimeLeft,
+      isMuted: refMuted,
+      onTimeSet: refOnTimeSet,
+    } = stateRef.current;
 
     // Angle relative to 12 o'clock (0 rad at 12 o'clock, clockwise is positive)
     let angleRad = Math.atan2(dy, dx) + Math.PI / 2;
@@ -136,39 +163,51 @@ export default function ClockFace({
 
     // Fraction calculation
     let fraction = 0;
-    if (isClockwise) {
+    if (refClockwise) {
       fraction = angleRad / (2 * Math.PI);
     } else {
       fraction = (2 * Math.PI - angleRad) / (2 * Math.PI);
     }
 
     // Prevent snapping directly from 0% to 100% or vice versa too easily at the top
-    // If we drag very close to the top, clamp it nicely
     if (fraction > 0.98) {
       fraction = 1;
     } else if (fraction < 0.01) {
       fraction = 0;
     }
 
-    const rawSeconds = fraction * maxDurationSeconds;
+    // To prevent accidental wrapping around the 12 o'clock line (0% <-> 100%) during active dragging:
+    if (isDraggingMove) {
+      const currentFraction = refTimeLeft / refMaxSec;
+      const fractionDiff = fraction - currentFraction;
+      if (Math.abs(fractionDiff) > 0.5) {
+        if (currentFraction < 0.25 && fraction > 0.75) {
+          fraction = 0;
+        } else if (currentFraction > 0.75 && fraction < 0.25) {
+          fraction = 1;
+        }
+      }
+    }
+
+    const rawSeconds = fraction * refMaxSec;
     
     // Snapping step size
     let snapStep = 60; // default 1 min
-    if (maxDurationSeconds <= 300) {
+    if (refMaxSec <= 300) {
       snapStep = 5; // 5 seconds for 5-minute scale
-    } else if (maxDurationSeconds <= 1800) {
+    } else if (refMaxSec <= 1800) {
       snapStep = 15; // 15 seconds for 15-30 minute scales
-    } else if (maxDurationSeconds > 3600) {
+    } else if (refMaxSec > 3600) {
       snapStep = 120; // 2 mins for 120-minute scale
     }
 
-    const snappedSeconds = Math.max(0, Math.min(maxDurationSeconds, Math.round(rawSeconds / snapStep) * snapStep));
+    const snappedSeconds = Math.max(0, Math.min(refMaxSec, Math.round(rawSeconds / snapStep) * snapStep));
     
-    if (snappedSeconds !== timeLeft) {
-      onTimeSet(snappedSeconds);
-      if (!isMuted) {
+    if (snappedSeconds !== refTimeLeft) {
+      refOnTimeSet(snappedSeconds);
+      if (!refMuted) {
         // High quality frequency sweep depending on how far we are
-        const pitchFreq = 300 + (snappedSeconds / maxDurationSeconds) * 500;
+        const pitchFreq = 300 + (snappedSeconds / refMaxSec) * 500;
         playTactileClick(pitchFreq, 0.015);
       }
     }
@@ -176,45 +215,45 @@ export default function ClockFace({
 
   const handleMouseDown = (e: React.MouseEvent<SVGSVGElement>) => {
     if (e.button !== 0) return; // Left click only
+    e.preventDefault(); // Disable browser native selection and ghost element dragging
     setIsDragging(true);
     onDragStart?.();
-    handlePointerEvent(e.clientX, e.clientY);
+    handlePointerEvent(e.clientX, e.clientY, false);
   };
 
-  const handleMouseMove = (e: React.MouseEvent<SVGSVGElement>) => {
-    if (isDragging) {
-      handlePointerEvent(e.clientX, e.clientY);
-    } else if (svgRef.current) {
-      // Trace hover angle for a subtle hover visual wedge
-      const rect = svgRef.current.getBoundingClientRect();
-      const centerX = rect.left + rect.width / 2;
-      const centerY = rect.top + rect.height / 2;
-      const dx = e.clientX - centerX;
-      const dy = e.clientY - centerY;
-      let angleRad = Math.atan2(dy, dx) + Math.PI / 2;
-      if (angleRad < 0) angleRad += 2 * Math.PI;
-      setHoverAngle(angleRad);
-    }
-  };
-
-  const handleMouseLeave = () => {
-    setHoverAngle(null);
-  };
-
-  // Touch handlers for responsive screens / class boards
   const handleTouchStart = (e: React.TouchEvent<SVGSVGElement>) => {
-    setIsDragging(true);
-    onDragStart?.();
     if (e.touches[0]) {
-      handlePointerEvent(e.touches[0].clientX, e.touches[0].clientY);
+      if (e.cancelable) {
+        e.preventDefault(); // Prevents scroll/gesture interference during dragging/taps
+      }
+      setIsDragging(true);
+      onDragStart?.();
+      handlePointerEvent(e.touches[0].clientX, e.touches[0].clientY, false);
     }
   };
 
-  const handleTouchMove = (e: React.TouchEvent<SVGSVGElement>) => {
-    if (isDragging && e.touches[0]) {
-      handlePointerEvent(e.touches[0].clientX, e.touches[0].clientY);
-    }
-  };
+  // Global events for uninterrupted dragging even outside the SVG area
+  useEffect(() => {
+    if (!isDragging) return;
+
+    const handleGlobalMouseMove = (e: MouseEvent) => {
+      handlePointerEvent(e.clientX, e.clientY, true);
+    };
+
+    const handleGlobalTouchMove = (e: TouchEvent) => {
+      if (e.touches[0]) {
+        handlePointerEvent(e.touches[0].clientX, e.touches[0].clientY, true);
+      }
+    };
+
+    window.addEventListener("mousemove", handleGlobalMouseMove);
+    window.addEventListener("touchmove", handleGlobalTouchMove, { passive: false });
+
+    return () => {
+      window.removeEventListener("mousemove", handleGlobalMouseMove);
+      window.removeEventListener("touchmove", handleGlobalTouchMove);
+    };
+  }, [isDragging]);
 
   useEffect(() => {
     const handleGlobalMouseUp = () => {
@@ -304,13 +343,17 @@ export default function ClockFace({
           ref={svgRef}
           id="timer-clock-face"
           viewBox="0 0 300 300"
-          className="w-full h-full overflow-visible touch-none cursor-grab active:cursor-grabbing"
+          className={`w-full h-full overflow-visible touch-none ${isDragging ? "cursor-grabbing" : "cursor-grab"}`}
           onMouseDown={handleMouseDown}
-          onMouseMove={handleMouseMove}
-          onMouseLeave={handleMouseLeave}
           onTouchStart={handleTouchStart}
-          onTouchMove={handleTouchMove}
         >
+          {/* SVG Definitions for clipping and gradient masks to guarantee zero bleeding */}
+          <defs>
+            <clipPath id="dial-clip">
+              <circle cx={CX} cy={CY} r={R} />
+            </clipPath>
+          </defs>
+
           {/* Subtle Outer Dial Shadow/Glow */}
           <circle
             cx={CX}
@@ -319,33 +362,43 @@ export default function ClockFace({
             className="fill-none stroke-neutral-200/30 dark:stroke-neutral-800/30 stroke-1"
           />
 
-          {/* Core White Circular dial body */}
+          {/* Core White Circular dial body (background only) */}
           <circle
             cx={CX}
             cy={CY}
             r={R}
-            className="fill-white dark:fill-neutral-900 stroke-neutral-200 dark:stroke-neutral-800 stroke-[1.5px]"
+            className="fill-white dark:fill-neutral-900"
           />
 
-          {/* Interactive Wedges */}
-          {/* 1. Full Circle state */}
-          {remainingFraction === 1 && (
-            <circle
-              cx={CX}
-              cy={CY}
-              r={R}
-              className={`${selectedColor} opacity-95 transition-all duration-150`}
-            />
-          )}
+          {/* Interactive Wedges inside Clip Path to prevent any possible edge bleeding */}
+          <g clipPath="url(#dial-clip)">
+            {/* 1. Full Circle state */}
+            {remainingFraction === 1 && (
+              <circle
+                cx={CX}
+                cy={CY}
+                r={R}
+                className={`${selectedColor} opacity-95`}
+              />
+            )}
 
-          {/* 2. Standard slice Wedge representing remaining time */}
-          {remainingFraction > 0 && remainingFraction < 1 && (
-            <path
-              id="countdown-wedge"
-              d={wedgePath}
-              className={`${selectedColor} opacity-95 transition-all duration-75`}
-            />
-          )}
+            {/* 2. Standard slice Wedge representing remaining time */}
+            {remainingFraction > 0 && remainingFraction < 1 && (
+              <path
+                id="countdown-wedge"
+                d={wedgePath}
+                className={`${selectedColor} opacity-95`}
+              />
+            )}
+          </g>
+
+          {/* Crisp Outer Border of the dial body (drawn on top of the wedges to prevent color bleed) */}
+          <circle
+            cx={CX}
+            cy={CY}
+            r={R}
+            className="fill-none stroke-neutral-200 dark:stroke-neutral-800 stroke-[1.5px]"
+          />
 
           {/* Ticks layer */}
           {ticks}
@@ -416,11 +469,11 @@ export default function ClockFace({
           />
         </svg>
 
-        {/* Drag visual guide overlay when remaining is 0 */}
-        {timeLeft === 0 && !isDragging && (
+        {/* Tap/Drag visual guide overlay when remaining is 0 */}
+        {timeLeft === 0 && (
           <div className="absolute inset-0 flex items-center justify-center pointer-events-none animate-pulse">
             <span className="text-[10px] font-medium tracking-wide uppercase px-2.5 py-1 bg-neutral-900/5 dark:bg-white/5 text-neutral-500 dark:text-neutral-400 rounded-full border border-neutral-200/50 dark:border-neutral-800/50 backdrop-blur-sm">
-              Drag Dial to Start
+              Drag or Tap Dial to Start
             </span>
           </div>
         )}
