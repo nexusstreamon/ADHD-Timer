@@ -341,7 +341,7 @@ export default function App() {
     if (isRunning) {
       document.title = `${formatTimeDigital(timeLeft)} - ADHD Timer`;
     } else {
-      document.title = "MM:SS ADHD Timer";
+      document.title = `${formatTimeDigital(timeLeft)} ADHD Timer`;
     }
   }, [timeLeft, isRunning]);
 
