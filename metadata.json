@@ -1,0 +1,6 @@
+{
+  "name": "ADHD Timer",
+  "description": "ADHD Timer - Visual Focus Companion. A high-fidelity, interactive visual countdown timer featuring a tactile click-and-drag dial, dynamic SVG wedges, sound profiles, and fullscreen presentation.",
+  "requestFramePermissions": [],
+  "majorCapabilities": ["MAJOR_CAPABILITY_SERVER_SIDE_GEMINI_API"]
+}
