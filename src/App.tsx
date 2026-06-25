@@ -50,6 +50,7 @@ export default function App() {
   const [showSettings, setShowSettings] = useState<boolean>(false);
   const [flashOnComplete, setFlashOnComplete] = useState<boolean>(false);
   const [quirkyIndex, setQuirkyIndex] = useState<number>(0);
+  const [hasRunFor30Seconds, setHasRunFor30Seconds] = useState<boolean>(false);
 
   // Quirky message rotation effect
   useEffect(() => {
@@ -58,6 +59,18 @@ export default function App() {
     }, 10000);
     return () => clearInterval(interval);
   }, []);
+
+  // Delay quirky messages for 30 seconds after timer starts
+  useEffect(() => {
+    if (isRunning) {
+      const timeout = setTimeout(() => {
+        setHasRunFor30Seconds(true);
+      }, 30000);
+      return () => clearTimeout(timeout);
+    } else {
+      setHasRunFor30Seconds(false);
+    }
+  }, [isRunning]);
 
   // Digital input temporary variables
   const [minInput, setMinInput] = useState<string>("15");
@@ -341,7 +354,7 @@ export default function App() {
   // Human-readable remaining time explanation (e.g. "12 Minutes Left")
   const getHumanTimeText = (seconds: number) => {
     if (seconds === 0) return "Time's up!";
-    if (!isRunning) return "\u00A0"; // Non-breaking space for layout preservation
+    if (!hasRunFor30Seconds) return "\u00A0"; // Non-breaking space for layout preservation
     const index = quirkyIndex % QUIRKY_PHRASES.length;
     return QUIRKY_PHRASES[index];
   };
