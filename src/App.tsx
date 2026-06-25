@@ -50,7 +50,6 @@ export default function App() {
   }, [initialTime]);
 
   const [isRunning, setIsRunning] = useState<boolean>(false);
-  const [isDark, setIsDark] = useState<boolean>(false);
   const [isFullscreen, setIsFullscreen] = useState<boolean>(false);
   const [isEditingDigital, setIsEditingDigital] = useState<boolean>(false);
   const [showHelp, setShowHelp] = useState<boolean>(false);
@@ -97,12 +96,8 @@ export default function App() {
 
   // Sync dark mode HTML class
   useEffect(() => {
-    if (isDark) {
-      document.documentElement.classList.add("dark");
-    } else {
-      document.documentElement.classList.remove("dark");
-    }
-  }, [isDark]);
+    document.documentElement.classList.add("dark");
+  }, []);
 
   // Synchronize inputs when timeLeft changes
   useEffect(() => {
@@ -381,17 +376,15 @@ export default function App() {
   };
 
   return (
-    <div className={`min-h-screen font-sans antialiased flex flex-col transition-colors duration-300 ${
-      isDark ? "bg-neutral-950 text-neutral-100" : "bg-neutral-50 text-neutral-900"
-    }`}>
+    <div className="min-h-screen font-sans antialiased flex flex-col transition-colors duration-300 bg-neutral-950 text-neutral-100">
       
       {/* GLOBAL ALARM FLASH EFFECT */}
       {flashOnComplete && (
-        <div className="fixed inset-0 pointer-events-none z-50 animate-pulse bg-red-500/10 dark:bg-red-500/15 ring-[12px] ring-red-500 ring-inset" />
+        <div className="fixed inset-0 pointer-events-none z-50 animate-pulse bg-red-500/15 ring-[12px] ring-red-500 ring-inset" />
       )}
 
       {/* HEADER / NAVIGATION BAR */}
-      <header className="px-6 py-4 border-b border-neutral-200/50 dark:border-neutral-800/40 backdrop-blur-md sticky top-0 z-40 transition-colors duration-300">
+      <header className="px-6 py-4 border-b border-neutral-800/40 backdrop-blur-md sticky top-0 z-40 transition-colors duration-300">
         <div className="max-w-6xl mx-auto flex items-center justify-between">
           <div className="flex items-center gap-3">
             <div className="w-9 h-9 rounded-xl bg-red-500 flex items-center justify-center shadow-md shadow-red-500/20">
@@ -409,19 +402,9 @@ export default function App() {
               id="header-mute-toggle"
               onClick={() => handleConfigChange({ isMuted: !config.isMuted })}
               title={config.isMuted ? "Unmute sounds" : "Mute sounds"}
-              className="p-2 rounded-xl bg-white hover:bg-neutral-100 border border-neutral-200 dark:bg-neutral-900 dark:hover:bg-neutral-800 dark:border-neutral-800/60 transition-all text-neutral-500 dark:text-neutral-400 cursor-pointer"
+              className="p-2 rounded-xl bg-neutral-900 hover:bg-neutral-800 border border-neutral-800/60 transition-all text-neutral-400 cursor-pointer"
             >
               {config.isMuted ? <VolumeX className="w-4 h-4" /> : <Volume2 className="w-4 h-4" />}
-            </button>
-
-            {/* Dark Mode Toggle */}
-            <button
-              id="theme-toggle-btn"
-              onClick={() => setIsDark(!isDark)}
-              title="Toggle theme mode"
-              className="p-2 rounded-xl bg-white hover:bg-neutral-100 border border-neutral-200 dark:bg-neutral-900 dark:hover:bg-neutral-800 dark:border-neutral-800/60 transition-all text-neutral-500 dark:text-neutral-400 cursor-pointer"
-            >
-              {isDark ? <Sun className="w-4 h-4 text-amber-400" /> : <Moon className="w-4 h-4" />}
             </button>
 
             {/* Fullscreen Button */}
@@ -483,14 +466,14 @@ export default function App() {
               {config.showDigital && (
                 <div className="relative group inline-block">
                   {isEditingDigital ? (
-                    <div id="inline-time-editor" className="flex items-center gap-1.5 px-3 py-1 bg-neutral-100 dark:bg-neutral-800 rounded-xl border border-neutral-200 dark:border-neutral-700 shadow-inner">
+                    <div id="inline-time-editor" className="flex items-center gap-1.5 px-3 py-1 bg-neutral-800 rounded-xl border border-neutral-700 shadow-inner">
                       <input
                         type="number"
                         min="0"
                         max="240"
                         value={minInput}
                         onChange={(e) => setMinInput(e.target.value)}
-                        className="w-12 text-center text-xl font-mono font-bold bg-transparent outline-none border-b border-neutral-300 focus:border-neutral-600 dark:focus:border-white text-neutral-800 dark:text-white"
+                        className="w-12 text-center text-xl font-mono font-bold bg-transparent outline-none border-b border-neutral-600 focus:border-white text-white"
                         placeholder="MM"
                         onKeyDown={(e) => e.key === "Enter" && handleSaveDigital()}
                       />
@@ -501,7 +484,7 @@ export default function App() {
                         max="59"
                         value={secInput}
                         onChange={(e) => setSecInput(e.target.value)}
-                        className="w-10 text-center text-xl font-mono font-bold bg-transparent outline-none border-b border-neutral-300 focus:border-neutral-600 dark:focus:border-white text-neutral-800 dark:text-white"
+                        className="w-10 text-center text-xl font-mono font-bold bg-transparent outline-none border-b border-neutral-600 focus:border-white text-white"
                         placeholder="SS"
                         onKeyDown={(e) => e.key === "Enter" && handleSaveDigital()}
                       />
@@ -762,19 +745,19 @@ export default function App() {
             </button>
 
             <div className="flex items-center gap-3 mb-5">
-              <div className="p-2 bg-red-100 dark:bg-red-950/40 text-red-500 rounded-xl">
+              <div className="p-2 bg-red-950/40 text-red-500 rounded-xl">
                 <Info className="w-5 h-5" />
               </div>
               <h2 className="text-lg font-extrabold tracking-tight">ADHD Timer Concept</h2>
             </div>
 
-            <div className="space-y-4 text-xs leading-relaxed text-neutral-600 dark:text-neutral-300">
+            <div className="space-y-4 text-xs leading-relaxed text-neutral-300">
               <p>
                 An <strong>ADHD Timer</strong> is an innovative visual stopwatch that represents time as a colorful graphic disk. Unlike typical clock hands or counting numbers, the visual disk disappears smoothly as time counts down.
               </p>
               
-              <div className="p-3.5 bg-neutral-50 dark:bg-neutral-950 rounded-2xl border border-neutral-200/40 dark:border-neutral-800/40 space-y-2">
-                <h4 className="font-bold text-neutral-800 dark:text-white flex items-center gap-1.5">
+              <div className="p-3.5 bg-neutral-900 rounded-2xl border border-neutral-700 space-y-2">
+                <h4 className="font-bold text-white flex items-center gap-1.5">
                   <Sparkles className="w-3.5 h-3.5 text-amber-500" /> Key Features of this App
                 </h4>
                 <ul className="list-disc list-inside space-y-1 pl-1">

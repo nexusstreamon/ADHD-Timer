@@ -117,7 +117,7 @@ export default function ClockFace({
     violet: "fill-violet-500 stroke-violet-600",
   };
 
-  const selectedColor = colorMap[themeColor] || colorMap.red;
+  const selectedColor = colorMap[themeColor as keyof typeof colorMap] || colorMap.red;
 
   // Stable reference to state to avoid stale closures in global dragging event listeners
   const stateRef = useRef({
@@ -313,10 +313,10 @@ export default function ClockFace({
           y2={y2}
           className={`${
             isQuarter 
-              ? "stroke-neutral-800 dark:stroke-neutral-200 stroke-[2px]" 
+              ? "stroke-neutral-300 dark:stroke-neutral-500 stroke-[2px]" 
               : isMajor 
-                ? "stroke-neutral-600 dark:stroke-neutral-400 stroke-[1.5px]" 
-                : "stroke-neutral-300 dark:stroke-neutral-700 stroke-[1px]"
+                ? "stroke-neutral-200 dark:stroke-neutral-600 stroke-[1.5px]" 
+                : "stroke-neutral-100 dark:stroke-neutral-700 stroke-[1px]"
           }`}
         />
       );
@@ -328,10 +328,10 @@ export default function ClockFace({
   const textRadius = R - 20;
 
   return (
-    <div className="relative select-none aspect-square w-full max-w-[420px] mx-auto bg-white dark:bg-neutral-900 rounded-3xl border border-neutral-100 dark:border-neutral-800/60 shadow-xl p-8 transition-colors duration-300">
+    <div className="relative select-none aspect-square w-full max-w-[420px] mx-auto bg-white dark:bg-neutral-900 rounded-full border border-neutral-100 dark:border-neutral-800/60 shadow-xl p-8 transition-colors duration-300">
       
       {/* Clock Bezel Frame */}
-      <div className="relative w-full h-full rounded-2xl bg-neutral-50 dark:bg-neutral-950 p-2 border border-neutral-200/40 dark:border-neutral-800/40 flex items-center justify-center">
+      <div className="relative w-full h-full rounded-full bg-neutral-50 dark:bg-neutral-950 p-2 border border-neutral-200/40 dark:border-neutral-800/40 flex items-center justify-center">
         
         <svg
           ref={svgRef}
@@ -356,7 +356,7 @@ export default function ClockFace({
             className="fill-none stroke-neutral-200/30 dark:stroke-neutral-800/30 stroke-1"
           />
 
-          {/* Core White Circular dial body (background only) */}
+          {/* Core Circular dial body (background) */}
           <circle
             cx={CX}
             cy={CY}
@@ -386,6 +386,23 @@ export default function ClockFace({
             )}
           </g>
 
+          {/* Concentric Rings (drawn on top of wedges for a textured/ribbed effect) */}
+          <g className="pointer-events-none">
+            {/* Draw 12 fine concentric rings */}
+            {Array.from({ length: 12 }).map((_, i) => {
+              const radius = (R / 12) * (i + 1);
+              return (
+                <circle
+                  key={`bg-circle-${i}`}
+                  cx={CX}
+                  cy={CY}
+                  r={radius}
+                  className="fill-none stroke-neutral-900/5 dark:stroke-white/5 stroke-[1px]"
+                />
+              );
+            })}
+          </g>
+
           {/* Crisp Outer Border of the dial body (drawn on top of the wedges to prevent color bleed) */}
           <circle
             cx={CX}
@@ -398,10 +415,10 @@ export default function ClockFace({
           {ticks}
 
           {/* Major quadrant markers */}
-          <circle cx={CX} cy={CY - R} r="3" className="fill-neutral-900 dark:fill-white" />
-          <circle cx={CX + R} cy={CY} r="2" className="fill-neutral-500 dark:fill-neutral-400" />
-          <circle cx={CX} cy={CY + R} r="2" className="fill-neutral-500 dark:fill-neutral-400" />
-          <circle cx={CX - R} cy={CY} r="2" className="fill-neutral-500 dark:fill-neutral-400" />
+          <circle cx={CX} cy={CY - R} r="3" className="fill-neutral-400 dark:fill-white" />
+          <circle cx={CX + R} cy={CY} r="2" className="fill-neutral-300 dark:fill-neutral-500" />
+          <circle cx={CX} cy={CY + R} r="2" className="fill-neutral-300 dark:fill-neutral-500" />
+          <circle cx={CX - R} cy={CY} r="2" className="fill-neutral-300 dark:fill-neutral-500" />
 
           {/* Dial labels */}
           {showNumbers &&
@@ -440,7 +457,7 @@ export default function ClockFace({
                   y={y}
                   textAnchor={textAnchor}
                   dy={dy}
-                  className="font-mono text-[10px] font-semibold fill-neutral-700 dark:fill-neutral-300 pointer-events-none transition-colors duration-300"
+                  className="font-mono text-xs font-semibold fill-neutral-500 dark:fill-neutral-400 pointer-events-none transition-colors duration-300"
                 >
                   {displayText}
                 </text>
@@ -452,14 +469,14 @@ export default function ClockFace({
             cx={CX}
             cy={CY}
             r="12"
-            className="fill-neutral-100 dark:fill-neutral-800 stroke-neutral-300 dark:stroke-neutral-700 stroke-[1.5px] shadow-sm pointer-events-none"
+            className="fill-neutral-50 dark:fill-neutral-800 stroke-neutral-200 dark:stroke-neutral-700 stroke-[1.5px] shadow-sm pointer-events-none"
           />
           {/* Inner accent ring */}
           <circle
             cx={CX}
             cy={CY}
             r="5"
-            className="fill-neutral-800 dark:fill-neutral-200 pointer-events-none"
+            className="fill-neutral-400 dark:fill-neutral-500 pointer-events-none"
           />
         </svg>
 
