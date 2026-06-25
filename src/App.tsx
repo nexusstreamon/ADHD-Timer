@@ -25,7 +25,7 @@ import {
 import ClockFace from "./components/ClockFace";
 import ControlPanel from "./components/ControlPanel";
 import { TimerConfig, SoundProfile } from "./types";
-import { playAlarmSound, playTickSound } from "./utils/audio";
+import { playAlarmSound, playTickSound, unlockAudioContext } from "./utils/audio";
 
 export default function App() {
   // Timer settings & states
@@ -42,6 +42,13 @@ export default function App() {
   });
 
   const [timeLeft, setTimeLeft] = useState<number>(900); // Start at 15 minutes default
+  const [initialTime, setInitialTime] = useState<number>(900);
+  const initialTimeRef = useRef<number>(900);
+
+  useEffect(() => {
+    initialTimeRef.current = initialTime;
+  }, [initialTime]);
+
   const [isRunning, setIsRunning] = useState<boolean>(false);
   const [isDark, setIsDark] = useState<boolean>(false);
   const [isFullscreen, setIsFullscreen] = useState<boolean>(false);
@@ -160,9 +167,10 @@ export default function App() {
           setFlashOnComplete(true);
           playAlarmSound(configRef.current.soundProfile, 0.4);
           
-          // Clear flash after 6 seconds
+          // Clear flash after 6 seconds and auto-reset to initial time
           setTimeout(() => {
             setFlashOnComplete(false);
+            setTimeLeft(initialTimeRef.current);
           }, 6000);
         } else if (action === "tick" && workerTimeLeft !== undefined) {
           // If the main thread is in the background, requestAnimationFrame won't run,
@@ -218,9 +226,10 @@ export default function App() {
             workerRef.current.postMessage({ action: "stop" });
           }
 
-          // Clear flash after 6 seconds
+          // Clear flash after 6 seconds and auto-reset to initial time
           setTimeout(() => {
             setFlashOnComplete(false);
+            setTimeLeft(initialTimeRef.current);
           }, 6000);
           return;
         }
@@ -270,11 +279,11 @@ export default function App() {
 
   // Play, Pause, Reset controls
   const handlePlayPause = () => {
+    unlockAudioContext();
     setFlashOnComplete(false);
     if (timeLeft <= 0) {
-      // Reset to 15 minutes (or 25% of current max scale) if starting from 0
-      const defaultDuration = Math.round(config.maxDurationSeconds * 0.25);
-      setTimeLeft(defaultDuration);
+      // Reset to initialTime if starting from 0
+      setTimeLeft(initialTime);
     }
     setIsRunning(!isRunning);
   };
@@ -282,21 +291,24 @@ export default function App() {
   const handleReset = () => {
     setIsRunning(false);
     setFlashOnComplete(false);
-    // Reset to 15 minutes (or 25% of current max scale)
-    const defaultDuration = Math.round(config.maxDurationSeconds * 0.25);
-    setTimeLeft(defaultDuration);
+    // Reset to the time it was initially started with
+    setTimeLeft(initialTime);
   };
 
   const handleSetTime = (seconds: number) => {
+    unlockAudioContext();
     setFlashOnComplete(false);
     setTimeLeft(seconds);
+    setInitialTime(seconds);
   };
 
   const handleQuickAdjust = (deltaSeconds: number) => {
     setFlashOnComplete(false);
     setTimeLeft((prev) => {
       const target = prev + deltaSeconds;
-      return Math.max(0, Math.min(config.maxDurationSeconds, target));
+      const clamped = Math.max(0, Math.min(config.maxDurationSeconds, target));
+      setInitialTime(clamped);
+      return clamped;
     });
   };
 
@@ -309,6 +321,7 @@ export default function App() {
     // Clamp to valid range based on scale
     const clampedSecs = Math.max(0, Math.min(config.maxDurationSeconds, totalSecs));
     setTimeLeft(clampedSecs);
+    setInitialTime(clampedSecs);
     setIsEditingDigital(false);
   };
 
@@ -323,6 +336,14 @@ export default function App() {
     const secs = Math.floor(seconds % 60);
     return `${totalMinutes.toString().padStart(2, "0")}:${secs.toString().padStart(2, "0")}`;
   };
+
+  useEffect(() => {
+    if (isRunning) {
+      document.title = `${formatTimeDigital(timeLeft)} - ADHD Timer`;
+    } else {
+      document.title = "MM:SS ADHD Timer";
+    }
+  }, [timeLeft, isRunning]);
 
   const QUIRKY_PHRASES = [
     "Busted! Look back at your work.",
